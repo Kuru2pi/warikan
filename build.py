@@ -4,7 +4,11 @@ from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 src, out, pw = sys.argv[1], sys.argv[2], sys.argv[3]
 html = open(src, 'rb').read()
-salt, iv, it = os.urandom(16), os.urandom(12), 600000
+# ソルトは固定（salt.txt）。変えると鍵が変わり、端末に記憶したパスワードと同期先の部屋がリセットされる
+salt_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'salt.txt')
+if not os.path.exists(salt_file):
+    open(salt_file, 'w').write(base64.b64encode(os.urandom(16)).decode())
+salt, iv, it = base64.b64decode(open(salt_file).read().strip()), os.urandom(12), 600000
 key = PBKDF2HMAC(hashes.SHA256(), 32, salt, it).derive(pw.encode())
 ct = AESGCM(key).encrypt(iv, html, None)
 b = lambda x: base64.b64encode(x).decode()
@@ -36,6 +40,7 @@ button{margin-top:14px;width:100%;min-height:46px;border:0;border-radius:12px;ba
 const P=__PAYLOAD__,K='warikan_gate_key';
 const d=s=>Uint8Array.from(atob(s),c=>c.charCodeAt(0));
 async function open_(raw){const key=await crypto.subtle.importKey('raw',raw,'AES-GCM',false,['decrypt']);
+ window.__WARIKAN_KEY=raw;try{sessionStorage.setItem('warikan_key',btoa(String.fromCharCode(...raw)))}catch(e){}
  const buf=await crypto.subtle.decrypt({name:'AES-GCM',iv:d(P.i)},key,d(P.c));
  const html=new TextDecoder().decode(buf);document.open();document.write(html);document.close();}
 async function derive(pw){const base=await crypto.subtle.importKey('raw',new TextEncoder().encode(pw),'PBKDF2',false,['deriveBits']);
